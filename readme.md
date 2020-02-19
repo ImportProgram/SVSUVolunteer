@@ -7,7 +7,7 @@ Demo: [Cardinal Volunteer [not production]](http://svsu.importprogram.me/volunte
 
 ## Features (CRUD)
 - User accounts. All user passwords hashed and salted for maximum security. 
-- Event Creator. Allows anyone to create and delete an event. Keep in mind only who created the event can delete it. Also events must be made 3 days in advanced. This may need to be fixed because of data problems (my server may have been incorreclty installed)
+- Event Creator. Allows anyone to create and delete an event. Keep in mind only who created the event can delete it. Also events must be made 3 days in advanced. This may need to be fixed because of date problems (my server may have been incorreclty installed)
 - Anyone can volunteer for events, they also can decline the volunteering. 
 
 ## Installing
@@ -18,7 +18,7 @@ Demo: [Cardinal Volunteer [not production]](http://svsu.importprogram.me/volunte
     - You can import the tables into PHPMyAdmin via the Import feature
 
 ## Known issues
-- Mobile experince when a user opens an event for a creator may be crapped. This may be fixed down the road.
+- Mobile experince when a user opens an event for a creator may be squished. This may be fixed down the road.
 
 
 ## License
