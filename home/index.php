@@ -8,7 +8,7 @@ $path = "../";
 
 
 //TODO: Fix the force set action as HTML forms are garbage
-$ACTION = "https://DOMAIN_HERE/volunteer/accounts/access/";
+$ACTION = "https://svsu.importprogram.me/volunteer/accounts/access/";
 $ERROR = false; //Do we have an error for the Access Page (not used by Home but needed as it will error)
 ?>
 <html>

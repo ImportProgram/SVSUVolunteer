@@ -203,15 +203,83 @@ function delete_event($db, $event) {
       $statement->execute();
   }
 }
+/**
+ * getDateForDatabase - Gets a date (usually a MM/DD/YY to a timestamp or datetime)
+ * @param date
+ */
+function getDateForDatabase(string $date): string {
+  $timestamp = strtotime($date);
+  $date_formated = date('Y-m-d H:i:s', $timestamp);
+  return $date_formated;
+}
+function update_event($db, $event, $name, $location, $time, $description, $icon) {
+  $imgdata="";
+  if ($icon["error"] != "4") {
+      //Encode the image as a BASE64
+      $imgdata = base64_encode(file_get_contents($icon['tmp_name'])); 
+  }
+  if (empty($imgdata)) {
+    $imgdata = null;
+  }
+  //Generate a uuid for the event to specify when viewing
+  $date = getDateForDatabase($time); //Get the proper date, this may mess up if the user sends the wrong date format but I don't care, the database should just not add the event
+  $query = "UPDATE events SET date=COALESCE(?,date), title=COALESCE(?,title), location=COALESCE(?,location), description=COALESCE(?,description), icon=COALESCE(?,icon) WHERE uuid=?";
+  if ($stmt = $db->prepare($query)) {
+      $stmt->bind_param("ssssss", $date, $name, $location, $description, $imgdata, $event);
+      $stmt->execute();
+      $stmt->close(); 
+  }
+}
+$CREATE_EVENT_ERROR = null;
+if (isset($_POST["create"])) {
+  //Do we have a user thats signned in?
+  if (isset($_SESSION["uuid"])) {
+    $pass = true;
+    //Event name?
+    if (strlen($_POST["event_name"]) < 5) {
+        $pass = false;
+        $CREATE_EVENT_ERROR = "Invalid name!";
+    }
+    //Event location?
+    if (strlen($_POST["event_location"]) < 5) {
+        $pass = false;
+        $CREATE_EVENT_ERROR = "Invalid location!";
+    }
+    //Event Date?
+    if ((strlen($_POST["event_date"]) < 6)) {
+        $pass = false;
+        $CREATE_EVENT_ERROR = "Invalid date!";
+    } else {
+        //Check if the date is AFTER today (this is kind of buggy (it doesn't allow for TODAY to be made sadly))
+        if (new DateTime() > new DateTime($_POST["event_date"])) {
+            $CREATE_EVENT_ERROR = "Can't create event in the past!";                
+        }
+    }
+    //Event icon 
+    //TODO: Check for the event data type (png or jpeg)
+    if (isset($_FILES["event_icon"])) {
+        if ($_FILES["event_icon"]["size"] > 64000) {
+            $pass = false;
+            $CREATE_EVENT_ERROR = "Invalid Icon, size is over 64k!";
+        }  
+    }
+    if (!isset($_GET["event"])) { 
+      $pass = false;
+    }
+    //Add the event if no error checking occured
+    if ($pass == true) {
+        update_event($db, $_GET["event"], $_POST["event_name"], $_POST["event_location"], $_POST["event_date"], $_POST["event_description"], $_FILES["event_icon"]);
+    }
+  }    
+}
+
 
 
 //Set the defaults for this page
 
 $path = "../../";
 
-//Pageination Code
-//Default Page is 1
-$PAGE = 1;
+
 
 
 //Check if we have an event "?events"
@@ -273,6 +341,19 @@ if ($IS_CREATOR && isset($_SESSION["uuid"]) && isset($_POST["delete"]) && new Da
         <body>
             <?php include_once "../../navigation.php"; ?>
             <div class="container tiles">
+            <?php 
+
+              if ($CREATE_EVENT_ERROR != null) {
+                  echo '                <div class="alert alert-warning" role="alert">
+                      Event Creation Error: <strong>' . $CREATE_EVENT_ERROR . '
+              </strong></div>';
+              }
+              if (!isset($_SESSION["uuid"]) != null) {
+                echo '                <div class="alert alert-primary" role="alert">
+                    Volunteering for an event reqiures you to be <a href="../../accounts/access/" style="color: black;">signed in.</a>
+            </strong></div>';
+            }
+              ?> 
               <div class="row justify-content-center">
                <div class="col-sm-12 col-md-4 col-lg-4">
                   <div class="jumbotron">
@@ -292,7 +373,9 @@ if ($IS_CREATOR && isset($_SESSION["uuid"]) && isset($_POST["delete"]) && new Da
                      </div>
                      </div>
                      <div style="border: 1px solid lightgray; border-radius: 5px; padding: 5px">
-                          <p> <?php echo htmlentities($event["description"]); ?></p>
+                          <p> <?php 
+                          
+                          echo nl2br(htmlentities($event["description"])); ?></p>
                      </div>
                      <hr />
                      <div class="text-center" style="margin-top: 10px;">
@@ -312,8 +395,12 @@ if ($IS_CREATOR && isset($_SESSION["uuid"]) && isset($_POST["delete"]) && new Da
                           <form method="post" action="?event=<?php echo $_GET["event"]; ?>"  class="d-flex">
                             <?php 
 
+                              //Show buttons for creators or volunteers
                               if ($IS_CREATOR && new DateTime() < new DateTime($event["date"])) {
                                 echo '<button type="button" class="btn btn-danger btn-lg" class="btn btn-primary" data-toggle="modal" data-target="#modalDelete">Delete</button>';
+                              }
+                              if ($IS_CREATOR) {
+                                echo '<button type="button" class="btn btn-success btn-lg" data-toggle="modal" data-target="#modalCreateEvent">Edit</button>';
                               }
                               if (isset($_SESSION["uuid"]) && new DateTime() < new DateTime($event["date"]) && $isVolunteer == false) {
                                 echo '<button type="button" class="btn btn-info btn-lg" class="btn btn-primary" data-toggle="modal" data-target="#modalVolunteer">Volunteer</button>';
@@ -334,7 +421,7 @@ if ($IS_CREATOR && isset($_SESSION["uuid"]) && isset($_POST["delete"]) && new Da
                           </colgroup>
                           <thead>
                              <tr>
-                                <th>Volunteer</th>
+                                <th>Volunteer(s)</th>
                                 <?php if ($IS_CREATOR) {
                                   echo ' <th>Phone</th> <th>Notes</th>';
                                 }?>
@@ -365,7 +452,9 @@ if ($IS_CREATOR && isset($_SESSION["uuid"]) && isset($_POST["delete"]) && new Da
                         </table>
                     </div>
                 </div>
-               
+               <?php if ($IS_CREATOR) {
+                 include_once "../_modal.php";
+               }?>
             </div>
         </div>
     </div>
@@ -375,6 +464,7 @@ if ($IS_CREATOR && isset($_SESSION["uuid"]) && isset($_POST["delete"]) && new Da
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.js" integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU=" crossorigin="anonymous"></script>
     <script src="../../js/popper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha256-WqU1JavFxSAMcLP2WIOI+GB2zWmShMI82mTpLDcqFUg=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js" integrity="sha256-bqVeqGdJ7h/lYPq6xrPv/YGzMEb6dNxlfiTUHSgRCp8=" crossorigin="anonymous"></script>
     <script src="../../js/argon.min.js"></script>
   </body>
 </html>

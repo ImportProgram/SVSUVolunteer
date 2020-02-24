@@ -40,6 +40,8 @@
         }
         .navbar {
             background: linear-gradient(90deg, #FC466B 0%, #3F5EFB 100%);
+            background-color: #990000;
+background-image: linear-gradient(147deg, #990000 0%, #ff0000 74%);
         }
         /*
             Make the tiles (all screens) change the padding for mobile and desktop
